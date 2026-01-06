@@ -70,12 +70,38 @@ modutil.mod.Path.Wrap("TraitTrayScreenShowCategory", function(baseFunc, screen, 
 	return wrap_TraitTrayScreenShowCategory(baseFunc, screen, categoryIndex, args)
 end)
 
+modutil.mod.Path.Wrap("TraitTrayScreenSelectCategory", function(baseFunc, screen, categoryIndex)
+	local ret = baseFunc(screen, categoryIndex)
+	wrap_TraitTrayScreenSelectCategory(screen, categoryIndex)
+	return ret
+end)
+
+modutil.mod.Path.Wrap("OpenTraitTrayScreen", function(baseFunc, args)
+	local ret = baseFunc(args)
+	wrap_OpenTraitTrayScreen(args)
+	return ret
+end)
+
 modutil.mod.Path.Wrap("GetDisplayName", function(baseFunc, args)
 	return wrap_GetDisplayName(baseFunc, args)
 end)
 
 modutil.mod.Path.Override("SpawnStoreItemInWorld", function(itemData, kitId)
 	return override_SpawnStoreItemInWorld(itemData, kitId)
+end)
+
+-- Add location announcements for room entrances
+modutil.mod.Path.Wrap("StartRoomPresentation", function(baseFunc, currentRun, currentRoom, previousRoom)
+	local ret = baseFunc(currentRun, currentRoom, previousRoom)
+	wrap_StartRoomPresentation(currentRun, currentRoom, previousRoom)
+	return ret
+end)
+
+-- Add specific announcements for surface/fields room entrances
+modutil.mod.Path.Wrap("FieldsRoomEntrancePresentation", function(baseFunc, currentRun, currentRoom)
+	local ret = baseFunc(currentRun, currentRoom)
+	wrap_FieldsRoomEntrancePresentation(currentRun, currentRoom)
+	return ret
 end)
 
 --arcana menu button speaking

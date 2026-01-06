@@ -2573,6 +2573,173 @@ function wrap_TraitTrayScreenShowCategory(baseFunc, screen, categoryIndex, args)
 	end
 end
 
+-- Announce category navigation in TraitTrayScreen
+function wrap_TraitTrayScreenSelectCategory(screen, categoryIndex)
+	if not screen or not categoryIndex then
+		return
+	end
+
+	-- Wait briefly for category to be fully loaded
+	thread(function()
+		wait(0.1)
+
+		local categoryText = ""
+
+		-- Try to get category name from screen components
+		if screen.Components and screen.Components.TraitTrayHeader then
+			local headerLines = rom.tolk.get_lines_from_thing(screen.Components.TraitTrayHeader.Id)
+			if headerLines and #headerLines > 0 then
+				categoryText = headerLines[1] or ""
+			end
+		end
+
+		-- Fallback: try to determine category from the button data
+		if categoryText == "" and screen.Components then
+			-- Look for category buttons to get the current category name
+			for i = 1, 20 do
+				local categoryButton = screen.Components["CategoryButton" .. i]
+				if categoryButton and categoryButton.Index == categoryIndex then
+					if categoryButton.Text then
+						categoryText = GetDisplayName({Text = categoryButton.Text, IgnoreSpecialFormatting = true})
+					elseif categoryButton.TraitSource then
+						categoryText = GetDisplayName({Text = categoryButton.TraitSource, IgnoreSpecialFormatting = true})
+					end
+					break
+				end
+			end
+		end
+
+		-- Count items in current category
+		local itemCount = 0
+		if screen.Components then
+			for i = 1, 100 do
+				local traitButton = screen.Components["TraitTrayItem" .. i]
+				if traitButton and not traitButton.Hidden then
+					itemCount = itemCount + 1
+				end
+			end
+		end
+
+		-- Build announcement
+		local announcement = ""
+		if categoryText ~= "" then
+			announcement = categoryText .. " category"
+		else
+			announcement = "Category " .. categoryIndex
+		end
+
+		if itemCount > 0 then
+			announcement = announcement .. ", " .. itemCount .. " items"
+		end
+
+		-- Announce via screen reader
+		if rom and rom.tolk and rom.tolk.output then
+			rom.tolk.output(announcement, true)
+		end
+	end)
+end
+
+-- Announce when TraitTrayScreen opens
+function wrap_OpenTraitTrayScreen(args)
+	thread(function()
+		wait(0.2)
+
+		-- Check if screen is actually open and not closing
+		local screen = ActiveScreens.TraitTrayScreen
+		if not screen or screen.Closing then
+			return
+		end
+
+		local announcement = "Boon List"
+
+		-- Try to get current category info
+		if screen.Components then
+			-- Get header text if available
+			if screen.Components.TraitTrayHeader then
+				local headerLines = rom.tolk.get_lines_from_thing(screen.Components.TraitTrayHeader.Id)
+				if headerLines and #headerLines > 0 then
+					local categoryName = headerLines[1]
+					if categoryName and categoryName ~= "" then
+						announcement = announcement .. ", " .. categoryName .. " category"
+					end
+				end
+			end
+
+			-- Count visible items
+			local itemCount = 0
+			for i = 1, 100 do
+				local traitButton = screen.Components["TraitTrayItem" .. i]
+				if traitButton and not traitButton.Hidden then
+					itemCount = itemCount + 1
+				end
+			end
+
+			if itemCount > 0 then
+				announcement = announcement .. ", " .. itemCount .. " items"
+			end
+		end
+
+		-- Announce via screen reader
+		if rom and rom.tolk and rom.tolk.output then
+			rom.tolk.output(announcement, true)
+		end
+	end)
+end
+
+-- Announce room location when starting a new room
+function wrap_StartRoomPresentation(currentRun, currentRoom, previousRoom)
+	if not currentRoom then
+		return
+	end
+
+	thread(function()
+		-- Wait for room presentation to start
+		wait(0.3)
+
+		local announcement = ""
+
+		-- Get room name/location
+		if currentRoom.Name then
+			local locationName = GetDisplayName({Text = currentRoom.Name, IgnoreSpecialFormatting = true})
+			if locationName and locationName ~= "" and locationName ~= currentRoom.Name then
+				announcement = locationName
+			end
+		end
+
+		-- Announce via screen reader if we have something to say
+		if announcement ~= "" and type(announcement) == "string" and rom and rom.tolk and rom.tolk.output then
+			rom.tolk.output(announcement, true)
+		end
+	end)
+end
+
+-- Announce surface/fields room entrance specifically
+function wrap_FieldsRoomEntrancePresentation(currentRun, currentRoom)
+	if not currentRoom then
+		return
+	end
+
+	thread(function()
+		-- Wait for presentation to start
+		wait(0.3)
+
+		local announcement = "Surface"
+
+		-- Get specific location name
+		if currentRoom.Name then
+			local locationName = GetDisplayName({Text = currentRoom.Name, IgnoreSpecialFormatting = true})
+			if locationName and locationName ~= "" and locationName ~= currentRoom.Name then
+				announcement = locationName
+			end
+		end
+
+		-- Announce via screen reader (ensure it's a string)
+		if type(announcement) == "string" and rom and rom.tolk and rom.tolk.output then
+			rom.tolk.output(announcement, true)
+		end
+	end)
+end
+
 function override_SpawnStoreItemInWorld(itemData, kitId)
 	local spawnedItem = nil
 	if itemData.Name == "WeaponUpgradeDrop" then
